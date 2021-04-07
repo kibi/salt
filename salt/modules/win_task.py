@@ -646,7 +646,6 @@ def create_task_from_xml(
         task_service.Connect()
 
         # Load xml from file, overrides xml_text
-        # Need to figure out how to load contents of xml
         if xml_path:
             xml_text = xml_path
 
@@ -677,6 +676,7 @@ def create_task_from_xml(
         except pythoncom.com_error as error:
             hr, msg, exc, arg = error.args  # pylint: disable=W0633
             error_code = hex(exc[5] + 2 ** 32)
+            error_details = exc[2]
             fc = {
                 "0x80041319": "Required element or attribute missing",
                 "0x80041318": "Value incorrectly formatted or out of range",
@@ -707,12 +707,12 @@ def create_task_from_xml(
                 "0x8004131d": "The task XML contains too many nodes of the same type",
             }
             try:
-                failure_code = fc[error_code]
+                failure_description = "{}: {}".format(fc[error_code], error_details)
             except KeyError:
-                failure_code = "Unknown Failure: {}".format(error_code)
+                failure_description = "Unknown Failure {}: {}".format(error_code, error_details)
             finally:
-                log.debug("Failed to create task: %s", failure_code)
-            raise CommandExecutionError(failure_code)
+                log.debug("Failed to create task: %s", failure_description)
+            raise CommandExecutionError(failure_description)
 
     # Verify creation
     return name in list_tasks(location)
