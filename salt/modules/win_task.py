@@ -17,6 +17,7 @@ import salt.utils.platform
 import salt.utils.winapi
 from salt.exceptions import ArgumentValueError, CommandExecutionError
 from salt.ext.six.moves import range
+from xml.etree import ElementTree
 
 try:
     import pythoncom
@@ -646,9 +647,11 @@ def create_task_from_xml(
         task_service.Connect()
 
         # Load xml from file, overrides xml_text
-        # Need to figure out how to load contents of xml
         if xml_path:
-            xml_text = xml_path
+            ElementTree.register_namespace('', "http://schemas.microsoft.com/windows/2004/02/mit/task")
+            # Parse XML from UTF8, UTF16lr and other encodings
+            tree = ElementTree.parse(xml_path).getroot()
+            xml_text = ElementTree.tostring(tree)
 
         # Get the folder to list folders from
         task_folder = task_service.GetFolder(location)
@@ -677,42 +680,43 @@ def create_task_from_xml(
         except pythoncom.com_error as error:
             hr, msg, exc, arg = error.args  # pylint: disable=W0633
             error_code = hex(exc[5] + 2 ** 32)
+            error_details = exc[2]
             fc = {
-                0x80041319: "Required element or attribute missing",
-                0x80041318: "Value incorrectly formatted or out of range",
-                0x80020005: "Access denied",
-                0x80041309: "A task's trigger is not found",
-                0x8004130A: "One or more of the properties required to run this "
+                "0x80041319": "Required element or attribute missing",
+                "0x80041318": "Value incorrectly formatted or out of range",
+                "0x80020005": "Access denied",
+                "0x80041309": "A task's trigger is not found",
+                "0x8004130a": "One or more of the properties required to run this "
                 "task have not been set",
-                0x8004130C: "The Task Scheduler service is not installed on this "
+                "0x8004130c": "The Task Scheduler service is not installed on this "
                 "computer",
-                0x8004130D: "The task object could not be opened",
-                0x8004130E: "The object is either an invalid task object or is not "
+                "0x8004130d": "The task object could not be opened",
+                "0x8004130e": "The object is either an invalid task object or is not "
                 "a task object",
-                0x8004130F: "No account information could be found in the Task "
+                "0x8004130f": "No account information could be found in the Task "
                 "Scheduler security database for the task indicated",
-                0x80041310: "Unable to establish existence of the account specified",
-                0x80041311: "Corruption was detected in the Task Scheduler "
+                "0x80041310": "Unable to establish existence of the account specified",
+                "0x80041311": "Corruption was detected in the Task Scheduler "
                 "security database; the database has been reset",
-                0x80041313: "The task object version is either unsupported or invalid",
-                0x80041314: "The task has been configured with an unsupported "
+                "0x80041313": "The task object version is either unsupported or invalid",
+                "0x80041314": "The task has been configured with an unsupported "
                 "combination of account settings and run time options",
-                0x80041315: "The Task Scheduler Service is not running",
-                0x80041316: "The task XML contains an unexpected node",
-                0x80041317: "The task XML contains an element or attribute from an "
+                "0x80041315": "The Task Scheduler Service is not running",
+                "0x80041316": "The task XML contains an unexpected node",
+                "0x80041317": "The task XML contains an element or attribute from an "
                 "unexpected namespace",
-                0x8004131A: "The task XML is malformed",
-                0x0004131C: "The task is registered, but may fail to start. Batch "
+                "0x8004131a": "The task XML is malformed",
+                "0x0004131c": "The task is registered, but may fail to start. Batch "
                 "logon privilege needs to be enabled for the task principal",
-                0x8004131D: "The task XML contains too many nodes of the same type",
+                "0x8004131d": "The task XML contains too many nodes of the same type",
             }
             try:
-                failure_code = fc[error_code]
+                failure_description = "{}: {}".format(fc[error_code], error_details)
             except KeyError:
-                failure_code = "Unknown Failure: {}".format(error_code)
+                failure_description = "Unknown Failure {}: {}".format(error_code, error_details)
             finally:
-                log.debug("Failed to create task: %s", failure_code)
-            raise CommandExecutionError(failure_code)
+                log.debug("Failed to create task: %s", failure_description)
+            raise CommandExecutionError(failure_description)
 
     # Verify creation
     return name in list_tasks(location)
