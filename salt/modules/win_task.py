@@ -17,6 +17,7 @@ import salt.utils.platform
 import salt.utils.winapi
 from salt.exceptions import ArgumentValueError, CommandExecutionError
 from salt.ext.six.moves import range
+from xml.etree import ElementTree
 
 try:
     import pythoncom
@@ -647,7 +648,10 @@ def create_task_from_xml(
 
         # Load xml from file, overrides xml_text
         if xml_path:
-            xml_text = xml_path
+            ElementTree.register_namespace('', "http://schemas.microsoft.com/windows/2004/02/mit/task")
+            # Parse XML from UTF8, UTF16lr and other encodings
+            tree = ElementTree.parse(xml_path).getroot()
+            xml_text = ElementTree.tostring(tree)
 
         # Get the folder to list folders from
         task_folder = task_service.GetFolder(location)
