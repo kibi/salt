@@ -709,6 +709,8 @@ def create_task_from_xml(
                 "0x0004131c": "The task is registered, but may fail to start. Batch "
                 "logon privilege needs to be enabled for the task principal",
                 "0x8004131d": "The task XML contains too many nodes of the same type",
+                "0x800700b7": "Cannot create the task when a similarly named task already exists",
+                "0x80070534": "Unvalid user name provided: no mapping between account name and security IDs was done",
             }
             try:
                 failure_description = "{}: {}".format(fc[error_code], error_details)
